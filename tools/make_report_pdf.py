@@ -20,8 +20,8 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 MD_PATH = ROOT / "docs" / "项目报告-草稿.md"
-OUT_DIR = ROOT / "陈胤璋"
-OUT_PDF = OUT_DIR / "商品归档重命名工具.pdf"
+OUT_DIR = ROOT / "提交"
+OUT_PDF = OUT_DIR / "Yinzhang Chen_商品归档重命名工具.pdf"
 
 ACCENT = (79, 70, 229)        # indigo（与产品一致）
 GRAY = (107, 114, 128)
