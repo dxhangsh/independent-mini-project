@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#4f46e5">
+  <title>PicNamer · AI 商品图片命名助手</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🏷️</span>
+      <div>
+        <h1>PicNamer</h1>
+        <p class="sub">AI 商品图片命名助手 · 图片不出电脑</p>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button class="tab active" data-view="work">工作台</button>
+      <button class="tab" data-view="rollback">回滚</button>
+      <button class="tab" data-view="settings">设置</button>
+    </nav>
+    <div class="health" id="health" title="AI 服务状态"><span class="dot"></span><span class="txt">检测中…</span></div>
+    <button id="btn-install" class="hidden" title="把 PicNamer 安装为桌面/App 应用">📲 安装</button>
+  </header>
+
+  <main>
+    <!-- ============ 工作台 ============ -->
+    <section id="view-work" class="view active">
+      <div class="card">
+        <h2>① 选择要整理的图片文件夹（可多个，每行一个）</h2>
+        <p class="lead">把商品图片批量起名、归档的本地工具——AI 读懂画面内容，起一个「看名识图」的文件名。放心用：只出建议名，你确认后才改名，改错可一键整批回滚。</p>
+        <div class="row">
+          <textarea id="folders" rows="3" spellcheck="false"
+            placeholder="每行一个文件夹完整路径，例如：&#10;D:\photos\耳机套装&#10;D:\photos\充电宝配件"></textarea>
+        </div>
+        <div id="recent-folders" class="chips"></div>
+        <div class="row">
+          <input type="text" id="product-word" placeholder="商品词前缀（可选，如：韶音OpenFit2），留空走极简模式" spellcheck="false">
+          <button id="btn-scan" class="primary">开始处理</button>
+          <button id="btn-resume" class="hidden">继续上次批次</button>
+        </div>
+        <p class="hint">流程：扫描目录 → AI 逐图识别 → 目录级归并 → 你逐图复核 → 安全落盘（可整批回滚）。小技巧：在文件资源管理器打开目标文件夹，点一下地址栏即可复制完整路径（浏览器安全限制，暂不支持直接拖拽文件夹进来；最近用过的路径会记在下方，点一下就能填）。</p>
+      </div>
+
+      <div class="card hidden" id="batch-card">
+        <h2>② 批量进度 <span id="batch-overall" class="badge blue"></span></h2>
+        <div id="batch-list" class="batch-list"></div>
+        <div class="row" style="margin-top:12px">
+          <button id="btn-cancel" class="hidden">暂停批次</button>
+        </div>
+      </div>
+
+      <div class="card hidden" id="review-card">
+        <h2>③ 复核建议名 <span id="review-folder" class="badge gray"></span>
+          <span id="review-stats" class="badge blue"></span>
+          <span id="review-created" class="muted"></span></h2>
+        <div id="issues" class="issues"></div>
+        <p class="hint">直接编辑文件名即可修改；勾选「跳过」表示这张不改名；点缩略图可放大对照。全部确认后点「落盘」（快捷键 Ctrl+Enter）。<b>落盘不删除、不覆盖任何文件，改错了随时可整批回滚。</b></p>
+        <div id="review-grid" class="grid"></div>
+        <div class="review-footer">
+          <label id="accept-row" class="hidden">
+            <input type="checkbox" id="accept-review">
+            我已逐条核对，接受残留的命名冲突，放行落盘
+          </label>
+          <span class="footer-actions">
+            <button id="btn-export-csv" class="hidden">⬇ 导出映射表 CSV</button>
+            <button id="btn-apply" class="primary">预检并落盘</button>
+          </span>
+        </div>
+        <div id="apply-result" class="apply-result hidden"></div>
+      </div>
+    </section>
+
+    <!-- ============ 回滚 ============ -->
+    <section id="view-rollback" class="view">
+      <div class="card">
+        <h2>历史落盘批次</h2>
+        <p class="hint">每次落盘都会记入 journal（写前日志）。选错批次可一键逆序还原，内容哈希校验会拒绝还原被改动过的文件。</p>
+        <div id="batches" class="batches"><p class="muted">加载中…</p></div>
+      </div>
+      <div class="card hidden" id="rollback-result-card">
+        <h2>回滚结果</h2>
+        <div id="rollback-result" class="apply-result"></div>
+      </div>
+    </section>
+
+    <!-- ============ 设置 ============ -->
+    <section id="view-settings" class="view">
+      <div class="card">
+        <h2>AI 推理设置</h2>
+        <div class="radio-row">
+          <label><input type="radio" name="provider" value="local_ollama"> 本地 Ollama（默认，图片不出电脑）</label>
+          <label><input type="radio" name="provider" value="cloud_openai"> 云端视觉 API（备选，图片会上传，请确认隐私可接受）</label>
+        </div>
+
+        <div id="settings-local">
+          <div class="row"><label class="lbl">Ollama 地址</label><input type="text" id="ollama-host" spellcheck="false"></div>
+          <div class="row"><label class="lbl">模型</label><input type="text" id="model" spellcheck="false"></div>
+          <div class="row"><label class="lbl">上下文长度</label><input type="number" id="num-ctx"></div>
+        </div>
+
+        <div id="settings-cloud" class="hidden">
+          <div class="row"><label class="lbl">API Base URL</label><input type="text" id="cloud-base" placeholder="https://api.example.com/v1" spellcheck="false"></div>
+          <div class="row"><label class="lbl">API Key</label><input type="password" id="cloud-key" placeholder="留空表示不修改已保存的 Key" autocomplete="off"></div>
+          <div class="row"><label class="lbl">模型</label><input type="text" id="cloud-model" spellcheck="false"></div>
+        </div>
+
+        <div class="row"><label class="lbl">缩放边长</label><input type="number" id="max-side"></div>
+        <div class="row"><label class="lbl">默认商品词</label><input type="text" id="default-product-word" placeholder="每次处理时自动带出的商品词前缀，可留空" spellcheck="false"></div>
+
+        <div class="row">
+          <button id="btn-save-settings" class="primary">保存设置</button>
+          <button id="btn-test">保存并测试连接</button>
+        </div>
+        <p id="settings-msg" class="muted"></p>
+        <p class="hint">Key 只保存在本机 out/config.json（已加入 .gitignore），界面回显为掩码，不会写入代码仓库。切换云端后图片会上传至该服务，请确认隐私可接受。</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    PicNamer · TJU Project-Based CST &amp; AI Foundations 独立小项目 ·
+    引擎核心复用自「商品图片批量重命名工具」（本地 Ollama + qwen3-vl）
+  </footer>
+
+  <div id="lightbox" class="hidden">
+    <img id="lightbox-img" alt="预览大图">
+    <div id="lightbox-cap"></div>
+    <div class="lb-tip">点击任意处关闭</div>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
